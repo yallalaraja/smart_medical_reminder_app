@@ -21,6 +21,21 @@ from ..services import (
 reminders_bp = Blueprint("reminders", __name__)
 
 
+@reminders_bp.get("/reminders")
+def list_reminders():
+    user_id = request.args.get("user_id")
+
+    query = Reminder.query
+    if user_id:
+        user, user_error, status_code = get_user_or_error(user_id)
+        if user_error:
+            return jsonify(user_error), status_code
+        query = query.filter_by(user_id=user.id)
+
+    reminders = query.order_by(Reminder.created_at.desc()).all()
+    return jsonify([serialize_reminder(reminder) for reminder in reminders])
+
+
 @reminders_bp.post("/reminders")
 def create_reminder():
     data = request.get_json() or {}

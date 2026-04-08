@@ -10,5 +10,11 @@ def root():
             "app": "smart-reminder-api",
             "status": "ok",
             "message": "API is running",
+            "api_base": "/api",
+            "sample_endpoints": [
+                "/api/reminders",
+                "/api/dashboard/<user_id>",
+                "/api/users/<user_id>/caregivers",
+            ],
         }
     )
