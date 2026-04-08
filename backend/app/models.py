@@ -1,4 +1,7 @@
 from datetime import datetime
+from uuid import uuid4
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
 
@@ -11,19 +14,26 @@ class TimestampMixin:
 
 
 class User(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
     full_name = db.Column(db.String(120), nullable=False)
     phone_number = db.Column(db.String(20), nullable=True)
     preferred_language = db.Column(db.String(20), default="en", nullable=False)
     timezone = db.Column(db.String(64), default="Asia/Kolkata", nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
 
     caregivers = db.relationship("Caregiver", backref="user", lazy=True)
     reminders = db.relationship("Reminder", backref="user", lazy=True)
 
+    def set_password(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
 
 class Caregiver(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("user.id"), nullable=False)
     full_name = db.Column(db.String(120), nullable=False)
     phone_number = db.Column(db.String(20), nullable=False)
     relationship = db.Column(db.String(50), nullable=True)
@@ -38,8 +48,8 @@ class Caregiver(TimestampMixin, db.Model):
 
 
 class Reminder(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     category = db.Column(db.String(30), default="personal", nullable=False)
@@ -61,8 +71,10 @@ class Reminder(TimestampMixin, db.Model):
 
 
 class AdherenceLog(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    reminder_id = db.Column(db.Integer, db.ForeignKey("reminder.id"), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    reminder_id = db.Column(
+        db.String(36), db.ForeignKey("reminder.id"), nullable=False
+    )
     status = db.Column(db.String(20), nullable=False)
     action_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.String(255), nullable=True)

@@ -11,7 +11,11 @@ from .reminder_service import (
 from .timezone_service import utc_now
 
 
-def schedule_reminder_final_status_evaluation(app, reminder_id: int, started_at) -> None:
+def schedule_reminder_final_status_evaluation(
+    app,
+    reminder_id: str,
+    started_at,
+) -> None:
     delay_seconds = app.config.get("REMINDER_FINAL_STATUS_DELAY_SECONDS", 60)
 
     worker = threading.Thread(
@@ -22,7 +26,12 @@ def schedule_reminder_final_status_evaluation(app, reminder_id: int, started_at)
     worker.start()
 
 
-def _evaluate_reminder_after_delay(app, reminder_id: int, started_at, delay_seconds: int) -> None:
+def _evaluate_reminder_after_delay(
+    app,
+    reminder_id: str,
+    started_at,
+    delay_seconds: int,
+) -> None:
     time.sleep(delay_seconds)
 
     with app.app_context():

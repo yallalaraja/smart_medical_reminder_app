@@ -54,8 +54,8 @@ def create_log():
     )
 
 
-@logs_bp.get("/logs/<int:reminder_id>")
-def get_logs(reminder_id: int):
+@logs_bp.get("/logs/<string:reminder_id>")
+def get_logs(reminder_id: str):
     reminder = db.session.get(Reminder, reminder_id)
     if not reminder:
         return jsonify({"error": "Reminder not found"}), 404

@@ -79,14 +79,14 @@ def create_reminder():
     return jsonify(serialize_reminder(reminder)), 201
 
 
-@reminders_bp.get("/reminders/<int:reminder_id>")
-def get_reminder(reminder_id: int):
+@reminders_bp.get("/reminders/<string:reminder_id>")
+def get_reminder(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
     return jsonify(serialize_reminder(reminder))
 
 
-@reminders_bp.put("/reminders/<int:reminder_id>")
-def update_reminder(reminder_id: int):
+@reminders_bp.put("/reminders/<string:reminder_id>")
+def update_reminder(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
     data = request.get_json() or {}
     schedule_updated = False
@@ -153,8 +153,8 @@ def update_reminder(reminder_id: int):
     return jsonify(serialize_reminder(reminder))
 
 
-@reminders_bp.put("/reminders/<int:reminder_id>/snooze")
-def snooze_reminder(reminder_id: int):
+@reminders_bp.put("/reminders/<string:reminder_id>/snooze")
+def snooze_reminder(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
     data = request.get_json() or {}
     minutes = int(data.get("minutes", 10))
@@ -177,8 +177,8 @@ def snooze_reminder(reminder_id: int):
     return jsonify(serialize_reminder(reminder))
 
 
-@reminders_bp.put("/reminders/<int:reminder_id>/trigger")
-def trigger_reminder(reminder_id: int):
+@reminders_bp.put("/reminders/<string:reminder_id>/trigger")
+def trigger_reminder(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
     reminder.last_triggered_at = utc_now()
     reminder.pending_evaluation_started_at = reminder.last_triggered_at
@@ -200,8 +200,8 @@ def trigger_reminder(reminder_id: int):
     return jsonify(serialize_reminder(reminder))
 
 
-@reminders_bp.post("/reminders/<int:reminder_id>/missed")
-def mark_missed(reminder_id: int):
+@reminders_bp.post("/reminders/<string:reminder_id>/missed")
+def mark_missed(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
     data = request.get_json(silent=True) or {}
 
@@ -238,8 +238,8 @@ def mark_missed(reminder_id: int):
     )
 
 
-@reminders_bp.delete("/reminders/<int:reminder_id>")
-def delete_reminder(reminder_id: int):
+@reminders_bp.delete("/reminders/<string:reminder_id>")
+def delete_reminder(reminder_id: str):
     reminder = Reminder.query.get_or_404(reminder_id)
 
     AdherenceLog.query.filter_by(reminder_id=reminder.id).delete()
@@ -248,8 +248,8 @@ def delete_reminder(reminder_id: int):
     return jsonify({"message": "Reminder deleted successfully"})
 
 
-@reminders_bp.get("/dashboard/<int:user_id>")
-def get_dashboard(user_id: int):
+@reminders_bp.get("/dashboard/<string:user_id>")
+def get_dashboard(user_id: str):
     user = User.query.get_or_404(user_id)
 
     reminders = [serialize_reminder(reminder) for reminder in user.reminders]

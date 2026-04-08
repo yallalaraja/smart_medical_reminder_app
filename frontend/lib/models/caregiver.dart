@@ -14,7 +14,7 @@ class Caregiver {
   });
 
   final String id;
-  final int userId;
+  final String userId;
   final String fullName;
   final String phoneNumber;
   final String relationship;
@@ -28,7 +28,7 @@ class Caregiver {
   factory Caregiver.fromJson(Map<String, dynamic> json) {
     return Caregiver(
       id: json['id'].toString(),
-      userId: json['user_id'] as int? ?? 0,
+      userId: (json['user_id'] ?? '').toString(),
       fullName: (json['full_name'] ?? '').toString(),
       phoneNumber: (json['phone_number'] ?? '').toString(),
       relationship: (json['relationship'] ?? '').toString(),
@@ -49,7 +49,7 @@ class Caregiver {
     );
   }
 
-  Map<String, dynamic> toCreateJson({required int userId}) {
+  Map<String, dynamic> toCreateJson({required String userId}) {
     return {
       'user_id': userId,
       'full_name': fullName,

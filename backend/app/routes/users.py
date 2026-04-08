@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 
 from ..extensions import db
 from ..models import User
+from ..services import is_valid_phone_number, normalize_phone_number
 from ..services.timezone_service import normalize_timezone
 
 users_bp = Blueprint("users", __name__)
@@ -14,13 +15,23 @@ def create_user():
 
     if not full_name:
         return jsonify({"error": "full_name is required"}), 400
+    if not data.get("password"):
+        return jsonify({"error": "password is required"}), 400
+
+    phone_number = normalize_phone_number(data.get("phone_number"))
+    if not is_valid_phone_number(phone_number):
+        return jsonify({"error": "phone_number must be a valid mobile number"}), 400
+    if User.query.filter_by(phone_number=phone_number).first():
+        return jsonify({"error": "A user with this phone number already exists"}), 409
 
     user = User(
         full_name=full_name,
-        phone_number=data.get("phone_number"),
+        phone_number=phone_number,
         preferred_language=data.get("preferred_language", "en"),
         timezone=normalize_timezone(data.get("timezone")),
+        password_hash="",
     )
+    user.set_password(data["password"])
     db.session.add(user)
     db.session.commit()
 
@@ -38,8 +49,8 @@ def create_user():
     )
 
 
-@users_bp.put("/users/<int:user_id>/timezone")
-def update_user_timezone(user_id: int):
+@users_bp.put("/users/<string:user_id>/timezone")
+def update_user_timezone(user_id: str):
     user = User.query.get_or_404(user_id)
     data = request.get_json() or {}
     timezone_name = data.get("timezone")

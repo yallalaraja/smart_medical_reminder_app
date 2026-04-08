@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../models/caregiver.dart';
+import 'api_headers.dart';
 import 'reminder_api_service.dart';
 
 class CaregiverApiService {
@@ -13,7 +14,7 @@ class CaregiverApiService {
 
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
 
-  Future<List<Caregiver>> fetchCaregivers({required int userId}) async {
+  Future<List<Caregiver>> fetchCaregivers({required String userId}) async {
     final response = await _client.get(_uri('/api/users/$userId/caregivers'));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ReminderApiException('Unable to load caregivers');
@@ -26,12 +27,12 @@ class CaregiverApiService {
   }
 
   Future<Caregiver> createCaregiver({
-    required int userId,
+    required String userId,
     required Caregiver caregiver,
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(caregiver.toCreateJson(userId: userId)),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -54,7 +55,7 @@ class CaregiverApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers/$caregiverId/resend-invitation'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
@@ -77,10 +78,10 @@ class CaregiverApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers/verify-otp'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
-          'caregiver_id': int.parse(caregiverId),
+          'caregiver_id': caregiverId,
           'otp_code': otpCode,
         },
       ),
@@ -105,7 +106,7 @@ class CaregiverApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers/$caregiverId/reject'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;

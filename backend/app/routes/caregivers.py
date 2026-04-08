@@ -86,8 +86,8 @@ def create_caregiver():
     )
 
 
-@caregivers_bp.get("/users/<int:user_id>/caregivers")
-def list_caregivers(user_id: int):
+@caregivers_bp.get("/users/<string:user_id>/caregivers")
+def list_caregivers(user_id: str):
     user, user_error, status_code = get_user_or_error(user_id)
     if user_error:
         return jsonify(user_error), status_code
@@ -95,8 +95,8 @@ def list_caregivers(user_id: int):
     return jsonify([serialize_caregiver(caregiver) for caregiver in user.caregivers])
 
 
-@caregivers_bp.post("/caregivers/<int:caregiver_id>/resend-invitation")
-def resend_caregiver_invitation(caregiver_id: int):
+@caregivers_bp.post("/caregivers/<string:caregiver_id>/resend-invitation")
+def resend_caregiver_invitation(caregiver_id: str):
     caregiver = Caregiver.query.get_or_404(caregiver_id)
     if caregiver.status == "accepted":
         return jsonify({"error": "Caregiver is already verified"}), 400
@@ -173,8 +173,8 @@ def verify_caregiver_otp():
     )
 
 
-@caregivers_bp.post("/caregivers/<int:caregiver_id>/reject")
-def reject_caregiver_invitation(caregiver_id: int):
+@caregivers_bp.post("/caregivers/<string:caregiver_id>/reject")
+def reject_caregiver_invitation(caregiver_id: str):
     caregiver = Caregiver.query.get_or_404(caregiver_id)
     caregiver.status = "rejected"
     caregiver.rejected_at = utc_now()

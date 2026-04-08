@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import 'api_headers.dart';
 import 'reminder_api_service.dart';
 
 class UserApiService {
@@ -13,12 +14,12 @@ class UserApiService {
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
 
   Future<void> updateTimezone({
-    required int userId,
+    required String userId,
     required String timezone,
   }) async {
     final response = await _client.put(
       _uri('/api/users/$userId/timezone'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode({'timezone': timezone}),
     );
 

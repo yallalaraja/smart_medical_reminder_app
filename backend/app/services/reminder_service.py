@@ -71,7 +71,7 @@ def normalize_selected_days(value: str | list[str] | None, repeat_type: str) -> 
     return ",".join(normalized_days)
 
 
-def latest_log_for_reminder(reminder_id: int):
+def latest_log_for_reminder(reminder_id: str):
     return (
         AdherenceLog.query.filter_by(reminder_id=reminder_id)
         .order_by(AdherenceLog.action_time.desc(), AdherenceLog.id.desc())
@@ -79,7 +79,7 @@ def latest_log_for_reminder(reminder_id: int):
     )
 
 
-def latest_log_after(reminder_id: int, started_at) -> AdherenceLog | None:
+def latest_log_after(reminder_id: str, started_at) -> AdherenceLog | None:
     return (
         AdherenceLog.query.filter(
             AdherenceLog.reminder_id == reminder_id,

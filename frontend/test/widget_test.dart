@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:elder_medication_reminder/app/app.dart';
+import 'package:smart_reminder_app/app/app.dart';
 
 void main() {
   test('SmartReminderApp can be created', () {

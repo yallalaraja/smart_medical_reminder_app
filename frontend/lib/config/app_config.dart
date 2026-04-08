@@ -1,18 +1,25 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const int defaultUserId = 1;
+  static const String defaultUserId = String.fromEnvironment(
+    'DEFAULT_USER_ID',
+    defaultValue: 'a4f9c2d1-7b6e-4c3a-9f21-8d5e7b1c2a34',
+  );
   static const String defaultReminderTimeZone = 'Asia/Kolkata';
   static String currentDeviceTimeZone = defaultReminderTimeZone;
+  static const String productionApiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://your-backend.example.com',
+  );
   static const int reminderAlertLoopMinutes = 10;
   static const int reminderDuePollSeconds = 15;
   static const int reminderVoiceRepeatSeconds = 8;
   static const int reminderAudioPreviewSeconds = 30;
 
   static String get apiBaseUrl {
-    const override = String.fromEnvironment('API_BASE_URL');
-    if (override.isNotEmpty) {
-      return override;
+    if (productionApiBaseUrl.isNotEmpty &&
+        productionApiBaseUrl != 'https://your-backend.example.com') {
+      return productionApiBaseUrl;
     }
 
     if (kIsWeb) {

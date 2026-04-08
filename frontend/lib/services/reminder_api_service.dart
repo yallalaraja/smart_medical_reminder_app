@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../models/medication_reminder.dart';
+import 'api_headers.dart';
 
 class ReminderApiService {
   ReminderApiService({http.Client? client}) : _client = client ?? http.Client();
@@ -14,7 +15,7 @@ class ReminderApiService {
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
 
   Future<List<MedicationReminder>> fetchDashboardReminders({
-    required int userId,
+    required String userId,
   }) async {
     final response = await _client.get(_uri('/api/dashboard/$userId'));
     _ensureSuccess(response, 'Unable to load reminders');
@@ -32,12 +33,12 @@ class ReminderApiService {
   }
 
   Future<MedicationReminder> createReminder({
-    required int userId,
+    required String userId,
     required MedicationReminder reminder,
   }) async {
     final reminderResponse = await _client.post(
       _uri('/api/reminders'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
           'user_id': userId,
@@ -65,7 +66,7 @@ class ReminderApiService {
   }) async {
     final response = await _client.put(
       _uri('/api/reminders/${reminder.id}'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
           'title': reminder.title,
@@ -101,10 +102,10 @@ class ReminderApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/logs'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
-          'reminder_id': int.parse(reminderId),
+          'reminder_id': reminderId,
           'status': 'done',
           'notes': 'Completed from Flutter app',
         },
@@ -121,7 +122,7 @@ class ReminderApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/reminders/$reminderId/missed'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
           'channel': channel,
@@ -140,7 +141,7 @@ class ReminderApiService {
   }) async {
     final response = await _client.put(
       _uri('/api/reminders/$reminderId/trigger'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
     );
     _ensureSuccess(response, 'Unable to start reminder alert');
 
@@ -153,10 +154,10 @@ class ReminderApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/logs'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode(
         {
-          'reminder_id': int.parse(reminderId),
+          'reminder_id': reminderId,
           'status': 'pending',
           'notes': 'Marked pending again from Flutter app',
         },
@@ -173,7 +174,7 @@ class ReminderApiService {
   }) async {
     final response = await _client.put(
       _uri('/api/reminders/$reminderId/snooze'),
-      headers: {'Content-Type': 'application/json'},
+      headers: buildJsonHeaders(),
       body: jsonEncode({'minutes': minutes}),
     );
     _ensureSuccess(response, 'Unable to snooze reminder');

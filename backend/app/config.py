@@ -2,15 +2,45 @@ import os
 
 
 class Config:
+    @staticmethod
+    def _build_database_uri() -> str:
+        db_host = os.getenv("DB_HOST")
+        db_port = os.getenv("DB_PORT", "5432")
+        db_name = os.getenv("DB_NAME")
+        db_user = os.getenv("DB_USER")
+        db_password = os.getenv("DB_PASSWORD")
+
+        missing = [
+            key
+            for key, value in {
+                "DB_HOST": db_host,
+                "DB_NAME": db_name,
+                "DB_USER": db_user,
+                "DB_PASSWORD": db_password,
+            }.items()
+            if not value
+        ]
+        if missing:
+            missing_keys = ", ".join(missing)
+            raise RuntimeError(
+                f"Missing PostgreSQL environment variables: {missing_keys}. "
+                "Set them in backend/.env before starting the app."
+            )
+
+        return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     DATA_DIR = os.path.join(BASE_DIR, "data")
+    DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        f"sqlite:///{os.path.join(DATA_DIR, 'medication_reminder.db').replace(os.sep, '/')}",
-    )
+    SQLALCHEMY_DATABASE_URI = _build_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+    }
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret")
+    JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_SECONDS", "86400"))
 
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -29,3 +59,8 @@ class Config:
     REMINDER_FINAL_STATUS_DELAY_SECONDS = int(
         os.getenv("REMINDER_FINAL_STATUS_DELAY_SECONDS", "60")
     )
+    CREATE_DEMO_USER = os.getenv("CREATE_DEMO_USER", "true").lower() == "true"
+    DEMO_USER_ID = os.getenv("DEMO_USER_ID", "a4f9c2d1-7b6e-4c3a-9f21-8d5e7b1c2a34")
+    DEMO_USER_NAME = os.getenv("DEMO_USER_NAME", "Demo User")
+    DEMO_USER_PHONE = os.getenv("DEMO_USER_PHONE", "9999999999")
+    DEMO_USER_PASSWORD = os.getenv("DEMO_USER_PASSWORD", "password123")
