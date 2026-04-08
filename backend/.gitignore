@@ -1,0 +1,74 @@
+# ----------------------
+# Python
+# ----------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ----------------------
+# Virtual Environment
+# ----------------------
+.venv/
+venv/
+env/
+ENV/
+
+# ----------------------
+# Environment Variables
+# ----------------------
+.env
+.env.*
+
+# ----------------------
+# Flask / Instance
+# ----------------------
+instance/
+*.db
+*.sqlite3
+
+# ----------------------
+# Logs
+# ----------------------
+*.log
+
+# ----------------------
+# OS Files
+# ----------------------
+.DS_Store
+Thumbs.db
+
+# ----------------------
+# IDE / Editor
+# ----------------------
+.vscode/
+.idea/
+
+# ----------------------
+# Build / Distribution
+# ----------------------
+build/
+dist/
+*.egg-info/
+
+# ----------------------
+# Pytest / Coverage
+# ----------------------
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----------------------
+# Migrations (optional)
+# ----------------------
+# migrations/   # Uncomment if you don't want migrations tracked
+
+# ----------------------
+# Media / Uploads
+# ----------------------
+uploads/
+media/
+
+# ----------------------
+# Node (if any frontend inside backend)
+# ----------------------
+node_modules/
