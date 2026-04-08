@@ -4,6 +4,18 @@ import os
 class Config:
     @staticmethod
     def _build_database_uri() -> str:
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            if database_url.startswith("postgres://"):
+                return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+            if database_url.startswith("postgresql://"):
+                return database_url.replace(
+                    "postgresql://",
+                    "postgresql+psycopg://",
+                    1,
+                )
+            return database_url
+
         db_host = os.getenv("DB_HOST")
         db_port = os.getenv("DB_PORT", "5432")
         db_name = os.getenv("DB_NAME")
@@ -13,18 +25,19 @@ class Config:
         missing = [
             key
             for key, value in {
+                "DATABASE_URL": database_url,
                 "DB_HOST": db_host,
                 "DB_NAME": db_name,
                 "DB_USER": db_user,
                 "DB_PASSWORD": db_password,
             }.items()
             if not value
-        ]
+        ][1:]
         if missing:
             missing_keys = ", ".join(missing)
             raise RuntimeError(
                 f"Missing PostgreSQL environment variables: {missing_keys}. "
-                "Set them in backend/.env before starting the app."
+                "Set DATABASE_URL or the split DB_* variables before starting the app."
             )
 
         return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
