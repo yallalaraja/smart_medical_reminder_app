@@ -1,5 +1,12 @@
 import java.util.Properties
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -20,6 +27,18 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFileValue = keystoreProperties.getProperty("storeFile")
+            if (!storeFileValue.isNullOrBlank()) {
+                storeFile = file(storeFileValue)
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     defaultConfig {
@@ -52,20 +71,3 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
-    val keystoreProperties = Properties()
-    val keystorePropertiesFile = rootProject.file("key.properties")
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(keystorePropertiesFile.inputStream())
-    }
-
-    signingConfigs {
-        create("release") {
-            val storeFileValue = keystoreProperties.getProperty("storeFile")
-            if (!storeFileValue.isNullOrBlank()) {
-                storeFile = file(storeFileValue)
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-            }
-        }
-    }

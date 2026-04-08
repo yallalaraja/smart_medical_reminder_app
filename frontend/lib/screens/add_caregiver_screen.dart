@@ -31,7 +31,7 @@ class _AddCaregiverScreenState extends State<AddCaregiverScreen> {
 
     final caregiver = Caregiver(
       id: '',
-      userId: 0,
+      userId: '',
       fullName: _fullNameController.text.trim(),
       phoneNumber: _phoneNumberController.text.trim(),
       relationship: _relationshipController.text.trim(),

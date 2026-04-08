@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // for kIsWeb
-import 'dart:html' as html;
 
 import '../config/app_config.dart';
 import '../models/medication_reminder.dart';
@@ -118,11 +117,11 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     }
   }
 
-    Future<void> _pickAudioFile() async {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        withData: true, // ✅ important for web
-      );
+  Future<void> _pickAudioFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      withData: kIsWeb,
+    );
 
     if (result == null || result.files.isEmpty) {
       return;
@@ -131,42 +130,37 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
     final file = result.files.single;
 
     if (kIsWeb) {
-        if (file.bytes == null) {
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not read audio file. Try another file.'),
-            ),
-          );
-          return;
-        }
-
-        final blob = html.Blob([file.bytes!]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-
-        setState(() {
-          _selectedAudioPath = url;   // ✅ THIS IS THE FIX
-          _selectedAudioName = file.name;
-        });
-      } else {
-      // 📱 MOBILE
-      if (file.path == null || file.path!.trim().isEmpty) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not read that audio file path.'),
-          ),
-        );
+      if (!mounted) {
         return;
       }
 
-      setState(() {
-        _selectedAudioPath = file.path;
-        _selectedAudioName = file.name;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Custom local audio selection is supported on Android and desktop builds.',
+          ),
+        ),
+      );
+      return;
     }
+
+    if (file.path == null || file.path!.trim().isEmpty) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not read that audio file path.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedAudioPath = file.path;
+      _selectedAudioName = file.name;
+    });
   }
 
   Future<void> _saveReminder() async {
@@ -198,7 +192,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       category: _category,
-      scheduledDate: _repeatType == 'once' ? _selectedDate : _selectedDate,
+      scheduledDate: _selectedDate,
       time: _selectedTime,
       repeatType: _repeatType,
       selectedDays: _selectedDays.toList(),
@@ -596,7 +590,7 @@ class _AddReminderScreenState extends State<AddReminderScreen> {
                           )
                         : Text(
                             _isEditMode ? 'Update Reminder' : 'Save Reminder',
-                            style: TextStyle(fontSize: 18),
+                            style: const TextStyle(fontSize: 18),
                           ),
                   ),
                 ),
