@@ -2,7 +2,7 @@ from datetime import datetime
 
 from ..models import AdherenceLog, Reminder
 from .caregiver_service import normalize_notification_channel, serialize_caregiver
-from .notification_service import notify_caregiver
+from .notification_service import notify_caregiver, with_signature
 from .timezone_service import datetime_to_local_iso, format_local_time_for_message
 
 
@@ -138,7 +138,7 @@ def _reminder_schedule_text(reminder: Reminder) -> str:
 
 
 def build_completed_notification_message(reminder: Reminder) -> str:
-    return (
+    return with_signature(
         f"Update: The task '{reminder.title}' scheduled at "
         f"{_reminder_schedule_text(reminder)} has been COMPLETED."
     )
@@ -146,7 +146,7 @@ def build_completed_notification_message(reminder: Reminder) -> str:
 
 def build_missed_notification_message(reminder: Reminder) -> str:
     description_line = f" Notes: {reminder.description}" if reminder.description else ""
-    return (
+    return with_signature(
         f"Alert: The task '{reminder.title}' scheduled at "
         f"{_reminder_schedule_text(reminder)} was MISSED.{description_line} Please check."
     )

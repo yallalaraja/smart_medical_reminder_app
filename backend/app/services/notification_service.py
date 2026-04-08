@@ -13,6 +13,15 @@ except ImportError:  # pragma: no cover - local fallback if dependency not insta
 from .caregiver_service import normalize_notification_channel, normalize_phone_number
 from .timezone_service import datetime_to_local_iso
 
+MESSAGE_SIGNATURE = "- YAHCAREAPP"
+
+
+def with_signature(message: str) -> str:
+    normalized = message.rstrip()
+    if normalized.endswith(MESSAGE_SIGNATURE):
+        return normalized
+    return f"{normalized} {MESSAGE_SIGNATURE}"
+
 
 @dataclass
 class NotificationResult:
@@ -147,4 +156,4 @@ def send_caregiver_invitation(
         f"Your verification OTP is {otp_code}. "
         f"Enter this OTP in the app to accept the invitation.{expiry_text}"
     )
-    return send_sms_notification(phone_number, body)
+    return send_sms_notification(phone_number, with_signature(body))
