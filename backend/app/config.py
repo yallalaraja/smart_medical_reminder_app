@@ -7,11 +7,11 @@ class Config:
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             if database_url.startswith("postgres://"):
-                return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+                return database_url.replace("postgres://", "postgresql+psycopg2://", 1)
             if database_url.startswith("postgresql://"):
                 return database_url.replace(
                     "postgresql://",
-                    "postgresql+psycopg://",
+                    "postgresql+psycopg2://",
                     1,
                 )
             return database_url
@@ -40,7 +40,9 @@ class Config:
                 "Set DATABASE_URL or the split DB_* variables before starting the app."
             )
 
-        return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        return (
+            f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        )
 
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     DATA_DIR = os.path.join(BASE_DIR, "data")
