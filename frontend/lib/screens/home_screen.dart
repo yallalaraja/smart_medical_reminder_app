@@ -27,6 +27,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const Duration _backgroundSyncInterval = Duration(minutes: 1);
+
   late final ReminderApiService _apiService;
   final ReminderNotificationService _notificationService =
       ReminderNotificationService.instance;
@@ -35,9 +37,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final TimezoneSyncService _timezoneSyncService = TimezoneSyncService.instance;
   late final List<MedicationReminder> _reminders;
   Timer? _dueReminderTimer;
+  Timer? _reminderSyncTimer;
   final Set<String> _suppressedDueReminderIds = <String>{};
   bool _isLoading = true;
   bool _isCheckingDueReminders = false;
+  bool _isSyncingReminders = false;
   String? _errorMessage;
   String? _activeDueReminderId;
 
@@ -55,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _dueReminderTimer?.cancel();
+    _reminderSyncTimer?.cancel();
     _audioService.stop();
     _ttsService.stopLoop();
     _apiService.dispose();
@@ -75,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkDueReminders(forceVoice: true);
+      unawaited(_syncRemindersInBackground(forceVoice: true));
     }
   }
 
@@ -95,6 +100,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _dueReminderTimer = Timer.periodic(
       const Duration(seconds: AppConfig.reminderDuePollSeconds),
       (_) => _checkDueReminders(),
+    );
+    _reminderSyncTimer?.cancel();
+    _reminderSyncTimer = Timer.periodic(
+      _backgroundSyncInterval,
+      (_) => unawaited(_syncRemindersInBackground()),
     );
   }
 
@@ -145,6 +155,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _errorMessage = 'Unable to connect to the backend right now.';
       });
       await _clearDueAlert(stopVoice: true);
+    }
+  }
+
+  Future<void> _syncRemindersInBackground({bool forceVoice = false}) async {
+    if (!mounted || _isLoading || _isSyncingReminders) {
+      return;
+    }
+
+    _isSyncingReminders = true;
+    try {
+      final reminders = await _apiService.fetchDashboardReminders(
+        userId: AppConfig.defaultUserId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final normalizedReminders =
+          reminders.map(_normalizeReminderForDisplay).toList();
+      normalizedReminders.sort((first, second) {
+        final firstTime = first.nextTriggerAt() ??
+            DateTime(9999, 12, 31, first.time.hour, first.time.minute);
+        final secondTime = second.nextTriggerAt() ??
+            DateTime(9999, 12, 31, second.time.hour, second.time.minute);
+        return firstTime.compareTo(secondTime);
+      });
+
+      setState(() {
+        _reminders
+          ..clear()
+          ..addAll(normalizedReminders);
+        _errorMessage = null;
+      });
+
+      _refreshSuppressedDueReminders();
+      await _notificationService.syncReminders(_reminders);
+      await _checkDueReminders(forceVoice: forceVoice);
+    } on ReminderApiException {
+      // Keep the last successful local schedule when the backend is briefly unavailable.
+    } catch (_) {
+      // Ignore transient sync failures and preserve the current local reminder state.
+    } finally {
+      _isSyncingReminders = false;
     }
   }
 

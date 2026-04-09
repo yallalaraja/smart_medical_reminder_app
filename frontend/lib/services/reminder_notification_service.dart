@@ -67,6 +67,7 @@ class ReminderNotificationService {
     }
 
     await initialize();
+    await _cancelStaleReminderNotifications(reminders);
 
     for (final reminder in reminders) {
       await scheduleReminder(reminder);
@@ -173,13 +174,47 @@ class ReminderNotificationService {
     }
   }
 
+  Future<void> _cancelStaleReminderNotifications(
+    List<MedicationReminder> reminders,
+  ) async {
+    final pendingRequests = await _plugin.pendingNotificationRequests();
+    final activeNotificationIds = <int>{};
+
+    for (final reminder in reminders) {
+      final firstNotificationId = _notificationId(reminder.id, slot: 0);
+      for (
+        var slot = 0;
+        slot < AppConfig.reminderAlertLoopMinutes;
+        slot++
+      ) {
+        activeNotificationIds.add(firstNotificationId + slot);
+      }
+    }
+
+    for (final request in pendingRequests) {
+      if (!activeNotificationIds.contains(request.id)) {
+        await _plugin.cancel(request.id);
+      }
+    }
+  }
+
   int _notificationId(String reminderId, {int slot = 0}) {
     final parsed = int.tryParse(reminderId);
     if (parsed != null) {
       return (parsed * 100) + slot;
     }
-    final stableHash = reminderId.hashCode & 0x0fffffff;
+    final stableHash = _stableReminderHash(reminderId);
     return (stableHash * 100) + slot;
+  }
+
+  int _stableReminderHash(String reminderId) {
+    var hash = 0;
+    for (final codeUnit in reminderId.codeUnits) {
+      hash = ((hash * 31) + codeUnit) & 0x0fffffff;
+    }
+
+    const maxBase = 21474836;
+    return hash % maxBase;
   }
 }
 
