@@ -3,6 +3,25 @@ import os
 
 class Config:
     @staticmethod
+    def _build_cors_origins():
+        configured_origins = [
+            origin.strip()
+            for origin in os.getenv("CORS_ORIGINS", "").split(",")
+            if origin.strip()
+        ]
+        if any(origin == "*" for origin in configured_origins):
+            return "*"
+
+        if configured_origins:
+            return configured_origins
+
+        return [
+            r"^http://localhost(:\d+)?$",
+            r"^http://127\.0\.0\.1(:\d+)?$",
+            "https://smart-reminder-app-ey9l.onrender.com",
+        ]
+
+    @staticmethod
     def _build_database_uri() -> str:
         database_url = os.getenv("DATABASE_URL")
         if database_url:
@@ -54,6 +73,9 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
     }
+    CORS_ORIGINS = _build_cors_origins()
+    CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    CORS_ALLOW_HEADERS = ["Content-Type", "Authorization"]
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret")
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_SECONDS", "86400"))
 

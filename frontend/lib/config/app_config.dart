@@ -9,7 +9,15 @@ class AppConfig {
   static String currentDeviceTimeZone = defaultReminderTimeZone;
   static const String productionApiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://your-backend.example.com',
+    defaultValue: 'https://smart-reminder-app-ey9l.onrender.com',
+  );
+  static const bool useLocalApi = bool.fromEnvironment(
+    'USE_LOCAL_API',
+    defaultValue: false,
+  );
+  static const String localApiBaseUrl = String.fromEnvironment(
+    'LOCAL_API_BASE_URL',
+    defaultValue: '',
   );
   static const int reminderAlertLoopMinutes = 10;
   static const int reminderDuePollSeconds = 15;
@@ -17,22 +25,25 @@ class AppConfig {
   static const int reminderAudioPreviewSeconds = 30;
 
   static String get apiBaseUrl {
-    if (productionApiBaseUrl.isNotEmpty &&
-        productionApiBaseUrl != 'https://your-backend.example.com') {
-      return productionApiBaseUrl;
+    if (useLocalApi) {
+      if (localApiBaseUrl.isNotEmpty) {
+        return localApiBaseUrl;
+      }
+
+      if (kIsWeb) {
+        return 'http://127.0.0.1:5000';
+      }
+
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          return 'http://10.0.2.2:5000';
+        case TargetPlatform.iOS:
+          return 'http://127.0.0.1:5000';
+        default:
+          return 'http://127.0.0.1:5000';
+      }
     }
 
-    if (kIsWeb) {
-      return 'http://127.0.0.1:5000';
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:5000';
-      case TargetPlatform.iOS:
-        return 'http://127.0.0.1:5000';
-      default:
-        return 'http://127.0.0.1:5000';
-    }
+    return productionApiBaseUrl;
   }
 }

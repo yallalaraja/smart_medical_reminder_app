@@ -19,6 +19,42 @@ from ..services.notification_service import send_caregiver_invitation
 caregivers_bp = Blueprint("caregivers", __name__)
 
 
+def _validate_caregiver_payload(
+    data: dict,
+    *,
+    user_id: str,
+    existing_caregiver_id: str | None = None,
+):
+    full_name = (data.get("full_name") or "").strip()
+    if not full_name:
+        return None, {"error": "full_name is required"}, 400
+
+    normalized_phone_number = normalize_phone_number(data.get("phone_number"))
+    if not is_valid_phone_number(normalized_phone_number):
+        return None, {"error": "phone_number must be a valid mobile number"}, 400
+
+    duplicate_query = Caregiver.query.filter_by(
+        user_id=user_id,
+        phone_number=normalized_phone_number,
+    )
+    if existing_caregiver_id:
+        duplicate_query = duplicate_query.filter(Caregiver.id != existing_caregiver_id)
+
+    existing_caregiver = duplicate_query.first()
+    if existing_caregiver:
+        return None, {"error": "This caregiver phone number is already added"}, 409
+
+    caregiver_data = {
+        "full_name": full_name,
+        "phone_number": normalized_phone_number,
+        "relationship": (data.get("relationship") or "").strip() or None,
+        "notification_channel": normalize_notification_channel(
+            data.get("notification_channel")
+        ),
+    }
+    return caregiver_data, None, None
+
+
 @caregivers_bp.post("/caregivers")
 def create_caregiver():
     data = request.get_json() or {}
@@ -32,27 +68,21 @@ def create_caregiver():
     if user_error:
         return jsonify(user_error), status_code
 
-    normalized_phone_number = normalize_phone_number(data["phone_number"])
-    if not is_valid_phone_number(normalized_phone_number):
-        return jsonify({"error": "phone_number must be a valid mobile number"}), 400
-
-    existing_caregiver = Caregiver.query.filter_by(
+    caregiver_data, validation_error, validation_status = _validate_caregiver_payload(
+        data,
         user_id=data["user_id"],
-        phone_number=normalized_phone_number,
-    ).first()
-    if existing_caregiver:
-        return jsonify({"error": "This caregiver phone number is already added"}), 409
+    )
+    if validation_error:
+        return jsonify(validation_error), validation_status
 
     otp_code = generate_otp_code()
 
     caregiver = Caregiver(
         user_id=data["user_id"],
-        full_name=data["full_name"].strip(),
-        phone_number=normalized_phone_number,
-        relationship=data.get("relationship"),
-        notification_channel=normalize_notification_channel(
-            data.get("notification_channel")
-        ),
+        full_name=caregiver_data["full_name"],
+        phone_number=caregiver_data["phone_number"],
+        relationship=caregiver_data["relationship"],
+        notification_channel=caregiver_data["notification_channel"],
         status="pending",
         otp_code=otp_code,
         otp_expires_at=caregiver_otp_expiry_time(),
@@ -93,6 +123,62 @@ def list_caregivers(user_id: str):
         return jsonify(user_error), status_code
 
     return jsonify([serialize_caregiver(caregiver) for caregiver in user.caregivers])
+
+
+@caregivers_bp.put("/caregivers/<string:caregiver_id>")
+def update_caregiver(caregiver_id: str):
+    caregiver = Caregiver.query.get_or_404(caregiver_id)
+    data = request.get_json() or {}
+
+    caregiver_data, validation_error, validation_status = _validate_caregiver_payload(
+        data,
+        user_id=caregiver.user_id,
+        existing_caregiver_id=caregiver.id,
+    )
+    if validation_error:
+        return jsonify(validation_error), validation_status
+
+    caregiver.full_name = caregiver_data["full_name"]
+    caregiver.phone_number = caregiver_data["phone_number"]
+    caregiver.relationship = caregiver_data["relationship"]
+    caregiver.notification_channel = caregiver_data["notification_channel"]
+
+    if caregiver.status != "accepted":
+        caregiver.status = "pending"
+        caregiver.accepted_at = None
+        caregiver.rejected_at = None
+        caregiver.otp_code = generate_otp_code()
+        caregiver.otp_expires_at = caregiver_otp_expiry_time()
+        caregiver.otp_attempts = 0
+        caregiver.invited_at = utc_now()
+        db.session.commit()
+
+        invitation_result = send_caregiver_invitation(
+            caregiver.phone_number,
+            caregiver.full_name,
+            caregiver.otp_code,
+            caregiver.otp_expires_at,
+            caregiver.user.timezone,
+        )
+        return jsonify(
+            {
+                "message": "Caregiver updated and verification restarted",
+                "caregiver": serialize_caregiver(caregiver),
+                "invitation": {
+                    "success": invitation_result.success,
+                    "sid": invitation_result.sid,
+                    "error": invitation_result.error,
+                },
+            }
+        )
+
+    db.session.commit()
+    return jsonify(
+        {
+            "message": "Caregiver updated successfully",
+            "caregiver": serialize_caregiver(caregiver),
+        }
+    )
 
 
 @caregivers_bp.post("/caregivers/<string:caregiver_id>/resend-invitation")
@@ -187,5 +273,19 @@ def reject_caregiver_invitation(caregiver_id: str):
         {
             "message": "Caregiver invitation rejected",
             "caregiver": serialize_caregiver(caregiver),
+        }
+    )
+
+
+@caregivers_bp.delete("/caregivers/<string:caregiver_id>")
+def delete_caregiver(caregiver_id: str):
+    caregiver = Caregiver.query.get_or_404(caregiver_id)
+    full_name = caregiver.full_name
+    db.session.delete(caregiver)
+    db.session.commit()
+
+    return jsonify(
+        {
+            "message": f"Caregiver {full_name} deleted successfully",
         }
     )

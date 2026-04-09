@@ -122,6 +122,118 @@ class _CaregiversScreenState extends State<CaregiversScreen> {
     }
   }
 
+  Future<void> _editCaregiver(Caregiver caregiver) async {
+    final updatedDraft = await Navigator.of(context).push<Caregiver>(
+      MaterialPageRoute(
+        builder: (_) => AddCaregiverScreen(initialCaregiver: caregiver),
+      ),
+    );
+
+    if (updatedDraft == null) {
+      return;
+    }
+
+    try {
+      final updatedCaregiver = await _apiService.updateCaregiver(
+        caregiver: updatedDraft,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _replaceCaregiver(updatedCaregiver);
+      });
+
+      final message = updatedCaregiver.isAccepted
+          ? '${updatedCaregiver.fullName} updated successfully.'
+          : '${updatedCaregiver.fullName} updated. OTP verification is required again.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } on ReminderApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update caregiver')),
+      );
+    }
+  }
+
+  Future<void> _deleteCaregiver(Caregiver caregiver) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete caregiver?'),
+          content: Text(
+            'Remove ${caregiver.fullName} from caregiver alerts?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    try {
+      final message = await _apiService.deleteCaregiver(
+        caregiverId: caregiver.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _caregivers.removeWhere((item) => item.id == caregiver.id);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } on ReminderApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete caregiver')),
+      );
+    }
+  }
+
   Future<void> _verifyCaregiver(Caregiver caregiver) async {
     final action = await Navigator.of(context).push<CaregiverVerificationAction>(
       MaterialPageRoute(
@@ -314,6 +426,14 @@ class _CaregiversScreenState extends State<CaregiversScreen> {
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
+                                        OutlinedButton(
+                                          onPressed: () => _editCaregiver(caregiver),
+                                          child: const Text('Edit'),
+                                        ),
+                                        OutlinedButton(
+                                          onPressed: () => _deleteCaregiver(caregiver),
+                                          child: const Text('Delete'),
+                                        ),
                                         if (caregiver.isPending)
                                           FilledButton(
                                             onPressed: () => _verifyCaregiver(caregiver),

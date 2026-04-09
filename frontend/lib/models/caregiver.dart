@@ -25,6 +25,34 @@ class Caregiver {
   final DateTime? rejectedAt;
   final DateTime? otpExpiresAt;
 
+  Caregiver copyWith({
+    String? id,
+    String? userId,
+    String? fullName,
+    String? phoneNumber,
+    String? relationship,
+    String? notificationChannel,
+    String? status,
+    DateTime? invitedAt,
+    DateTime? acceptedAt,
+    DateTime? rejectedAt,
+    DateTime? otpExpiresAt,
+  }) {
+    return Caregiver(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      fullName: fullName ?? this.fullName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      relationship: relationship ?? this.relationship,
+      notificationChannel: notificationChannel ?? this.notificationChannel,
+      status: status ?? this.status,
+      invitedAt: invitedAt ?? this.invitedAt,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      rejectedAt: rejectedAt ?? this.rejectedAt,
+      otpExpiresAt: otpExpiresAt ?? this.otpExpiresAt,
+    );
+  }
+
   factory Caregiver.fromJson(Map<String, dynamic> json) {
     return Caregiver(
       id: json['id'].toString(),
@@ -52,6 +80,15 @@ class Caregiver {
   Map<String, dynamic> toCreateJson({required String userId}) {
     return {
       'user_id': userId,
+      'full_name': fullName,
+      'phone_number': phoneNumber,
+      'relationship': relationship,
+      'notification_channel': notificationChannel,
+    };
+  }
+
+  Map<String, dynamic> toUpdateJson() {
+    return {
       'full_name': fullName,
       'phone_number': phoneNumber,
       'relationship': relationship,

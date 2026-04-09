@@ -159,29 +159,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
+    MedicationReminder? savedReminder;
     try {
-      final savedReminder = await _apiService.createReminder(
+      savedReminder = await _apiService.createReminder(
         userId: AppConfig.defaultUserId,
         reminder: draftReminder,
       );
 
-      setState(() {
-        _reminders.add(_normalizeReminderForDisplay(savedReminder));
-        _sortReminders();
-      });
-
-      await _notificationService.scheduleReminder(savedReminder);
-      await _checkDueReminders(forceVoice: true);
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${savedReminder.title} reminder saved'),
-        ),
-      );
+      await _loadReminders();
     } on ReminderApiException catch (error) {
       if (!mounted) {
         return;
@@ -197,7 +182,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not save reminder. Check that the backend is running.'),
+          content: Text('Could not save reminder right now.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final confirmedReminder = savedReminder!;
+      await _notificationService.scheduleReminder(confirmedReminder);
+      await _checkDueReminders(forceVoice: true);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${confirmedReminder.title} reminder saved'),
+        ),
+      );
+    } on ReminderSchedulingException catch (error) {
+      await _loadReminders();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+        ),
+      );
+    } catch (error) {
+      await _loadReminders();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${savedReminder!.title} was saved, but local alarm scheduling failed on this device.',
+          ),
         ),
       );
     }

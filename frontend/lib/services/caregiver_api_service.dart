@@ -15,7 +15,10 @@ class CaregiverApiService {
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
 
   Future<List<Caregiver>> fetchCaregivers({required String userId}) async {
-    final response = await _client.get(_uri('/api/users/$userId/caregivers'));
+    final response = await _client.get(
+      _uri('/api/users/$userId/caregivers'),
+      headers: buildAuthHeaders(),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ReminderApiException('Unable to load caregivers');
     }
@@ -55,7 +58,7 @@ class CaregiverApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers/$caregiverId/resend-invitation'),
-      headers: buildJsonHeaders(),
+      headers: buildAuthHeaders(),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
@@ -66,6 +69,29 @@ class CaregiverApiService {
         errorMessage = null;
       }
       throw ReminderApiException(errorMessage ?? 'Unable to resend invitation');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return Caregiver.fromJson(body['caregiver'] as Map<String, dynamic>);
+  }
+
+  Future<Caregiver> updateCaregiver({
+    required Caregiver caregiver,
+  }) async {
+    final response = await _client.put(
+      _uri('/api/caregivers/${caregiver.id}'),
+      headers: buildJsonHeaders(),
+      body: jsonEncode(caregiver.toUpdateJson()),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String? errorMessage;
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = body['error']?.toString();
+      } catch (_) {
+        errorMessage = null;
+      }
+      throw ReminderApiException(errorMessage ?? 'Unable to update caregiver');
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -106,7 +132,7 @@ class CaregiverApiService {
   }) async {
     final response = await _client.post(
       _uri('/api/caregivers/$caregiverId/reject'),
-      headers: buildJsonHeaders(),
+      headers: buildAuthHeaders(),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
@@ -121,6 +147,28 @@ class CaregiverApiService {
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return Caregiver.fromJson(body['caregiver'] as Map<String, dynamic>);
+  }
+
+  Future<String> deleteCaregiver({
+    required String caregiverId,
+  }) async {
+    final response = await _client.delete(
+      _uri('/api/caregivers/$caregiverId'),
+      headers: buildAuthHeaders(),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String? errorMessage;
+      try {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        errorMessage = body['error']?.toString();
+      } catch (_) {
+        errorMessage = null;
+      }
+      throw ReminderApiException(errorMessage ?? 'Unable to delete caregiver');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return (body['message'] ?? 'Caregiver deleted').toString();
   }
 
   void dispose() {

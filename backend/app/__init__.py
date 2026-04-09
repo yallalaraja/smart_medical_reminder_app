@@ -30,11 +30,17 @@ def _log_database_startup(app: Flask, stage: str) -> None:
     database_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     app.logger.info("Database stage: %s", stage)
     app.logger.info("Database URI: %s", _mask_database_uri(database_uri))
-    app.logger.info("Database dialect: %s", db.engine.dialect.name)
+    try:
+        app.logger.info("Database dialect: %s", db.engine.dialect.name)
 
-    inspector = inspect(db.engine)
-    table_names = inspector.get_table_names()
-    app.logger.info("Available tables: %s", ", ".join(table_names) if table_names else "<none>")
+        inspector = inspect(db.engine)
+        table_names = inspector.get_table_names()
+        app.logger.info(
+            "Available tables: %s",
+            ", ".join(table_names) if table_names else "<none>",
+        )
+    except Exception as error:
+        app.logger.warning("Database inspection skipped during %s: %s", stage, error)
 
 
 def _ensure_demo_user(app: Flask) -> None:
@@ -72,9 +78,31 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     os.makedirs(app.config["DATA_DIR"], exist_ok=True)
 
     db.init_app(app)
-    cors.init_app(app)
+    cors.init_app(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": app.config["CORS_ORIGINS"],
+                "methods": app.config["CORS_METHODS"],
+                "allow_headers": app.config["CORS_ALLOW_HEADERS"],
+                "automatic_options": True,
+                "max_age": 86400,
+            },
+            r"/": {
+                "origins": app.config["CORS_ORIGINS"],
+                "methods": ["GET", "OPTIONS"],
+                "allow_headers": app.config["CORS_ALLOW_HEADERS"],
+            },
+        },
+        vary_header=True,
+    )
     jwt.init_app(app)
     register_blueprints(app)
+
+    @app.route("/api", methods=["OPTIONS"])
+    @app.route("/api/<path:_path>", methods=["OPTIONS"])
+    def cors_preflight(_path: str | None = None):
+        return ("", 204)
 
     @app.errorhandler(400)
     def bad_request(error):

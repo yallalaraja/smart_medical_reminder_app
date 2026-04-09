@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/caregiver.dart';
 
 class AddCaregiverScreen extends StatefulWidget {
-  const AddCaregiverScreen({super.key});
+  const AddCaregiverScreen({
+    super.key,
+    this.initialCaregiver,
+  });
+
+  final Caregiver? initialCaregiver;
 
   @override
   State<AddCaregiverScreen> createState() => _AddCaregiverScreenState();
@@ -15,6 +20,22 @@ class _AddCaregiverScreenState extends State<AddCaregiverScreen> {
   final _phoneNumberController = TextEditingController();
   final _relationshipController = TextEditingController();
   String _notificationChannel = 'sms';
+
+  bool get _isEditMode => widget.initialCaregiver != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final caregiver = widget.initialCaregiver;
+    if (caregiver == null) {
+      return;
+    }
+
+    _fullNameController.text = caregiver.fullName;
+    _phoneNumberController.text = caregiver.phoneNumber;
+    _relationshipController.text = caregiver.relationship;
+    _notificationChannel = caregiver.notificationChannel;
+  }
 
   @override
   void dispose() {
@@ -30,12 +51,17 @@ class _AddCaregiverScreenState extends State<AddCaregiverScreen> {
     }
 
     final caregiver = Caregiver(
-      id: '',
-      userId: '',
+      id: widget.initialCaregiver?.id ?? '',
+      userId: widget.initialCaregiver?.userId ?? '',
       fullName: _fullNameController.text.trim(),
       phoneNumber: _phoneNumberController.text.trim(),
       relationship: _relationshipController.text.trim(),
       notificationChannel: _notificationChannel,
+      status: widget.initialCaregiver?.status ?? 'pending',
+      invitedAt: widget.initialCaregiver?.invitedAt,
+      acceptedAt: widget.initialCaregiver?.acceptedAt,
+      rejectedAt: widget.initialCaregiver?.rejectedAt,
+      otpExpiresAt: widget.initialCaregiver?.otpExpiresAt,
     );
 
     Navigator.of(context).pop(caregiver);
@@ -44,7 +70,9 @@ class _AddCaregiverScreenState extends State<AddCaregiverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Caregiver')),
+      appBar: AppBar(
+        title: Text(_isEditMode ? 'Edit Caregiver' : 'Add Caregiver'),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,

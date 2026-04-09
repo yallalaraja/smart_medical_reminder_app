@@ -18,6 +18,7 @@ class ReminderNotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  bool _canScheduleExactAlarms = false;
 
   Future<void> initialize({
     Future<void> Function(NotificationReminderPayload payload)? onReminderTap,
@@ -27,7 +28,11 @@ class ReminderNotificationService {
     }
 
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation(AppConfig.currentDeviceTimeZone));
+    try {
+      tz.setLocalLocation(tz.getLocation(AppConfig.currentDeviceTimeZone));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation(AppConfig.defaultReminderTimeZone));
+    }
 
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -46,14 +51,12 @@ class ReminderNotificationService {
         await onReminderTap(NotificationReminderPayload.fromJson(payloadJson));
       },
     );
-    await _plugin
+    final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+    _canScheduleExactAlarms =
+        await androidPlugin?.requestExactAlarmsPermission() ?? false;
 
     _initialized = true;
   }
@@ -86,38 +89,76 @@ class ReminderNotificationService {
     }
 
     for (var index = 0; index < alertMoments.length; index++) {
-      await _plugin.zonedSchedule(
-        _notificationId(reminder.id, slot: index),
-        reminder.notificationTitle(),
-        reminder.notificationBody(),
-        tz.TZDateTime.from(alertMoments[index], tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'smart_reminder_channel',
-            'Smart Reminder Alerts',
-            channelDescription: 'Reminder notifications for important tasks',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            enableVibration: true,
-            visibility: NotificationVisibility.public,
-            category: AndroidNotificationCategory.alarm,
-            fullScreenIntent: true,
-            audioAttributesUsage: AudioAttributesUsage.alarm,
-            ticker: 'Smart Reminder Alert',
-          ),
-        ),
-        payload: jsonEncode(
-          NotificationReminderPayload(
-            reminderId: reminder.id,
-            title: reminder.title,
-            message: reminder.voiceMessage ?? reminder.notificationBody(),
-          ).toJson(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
+      final scheduledTime = tz.TZDateTime.from(alertMoments[index], tz.local);
+      final payload = jsonEncode(
+        NotificationReminderPayload(
+          reminderId: reminder.id,
+          title: reminder.title,
+          message: reminder.voiceMessage ?? reminder.notificationBody(),
+        ).toJson(),
       );
+
+      try {
+        await _plugin.zonedSchedule(
+          _notificationId(reminder.id, slot: index),
+          reminder.notificationTitle(),
+          reminder.notificationBody(),
+          scheduledTime,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'smart_reminder_channel',
+              'Smart Reminder Alerts',
+              channelDescription: 'Reminder notifications for important tasks',
+              importance: Importance.max,
+              priority: Priority.high,
+              playSound: true,
+              enableVibration: true,
+              visibility: NotificationVisibility.public,
+              category: AndroidNotificationCategory.alarm,
+              fullScreenIntent: true,
+              audioAttributesUsage: AudioAttributesUsage.alarm,
+              ticker: 'Smart Reminder Alert',
+            ),
+          ),
+          payload: payload,
+          androidScheduleMode: _canScheduleExactAlarms
+              ? AndroidScheduleMode.exactAllowWhileIdle
+              : AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (error) {
+        try {
+          await _plugin.zonedSchedule(
+            _notificationId(reminder.id, slot: index),
+            reminder.notificationTitle(),
+            reminder.notificationBody(),
+            scheduledTime,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'smart_reminder_channel',
+                'Smart Reminder Alerts',
+                channelDescription: 'Reminder notifications for important tasks',
+                importance: Importance.max,
+                priority: Priority.high,
+                playSound: true,
+                enableVibration: true,
+                visibility: NotificationVisibility.public,
+                category: AndroidNotificationCategory.reminder,
+                ticker: 'Smart Reminder Alert',
+              ),
+            ),
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+        } catch (fallbackError) {
+          throw ReminderSchedulingException(
+            'Could not schedule alarm on this device. Exact alarm error: $error. Fallback error: $fallbackError',
+          );
+        }
+      }
     }
   }
 
@@ -137,8 +178,18 @@ class ReminderNotificationService {
     if (parsed != null) {
       return (parsed * 100) + slot;
     }
-    return ((reminderId.hashCode & 0x7fffffff) * 100) + slot;
+    final stableHash = reminderId.hashCode & 0x0fffffff;
+    return (stableHash * 100) + slot;
   }
+}
+
+class ReminderSchedulingException implements Exception {
+  ReminderSchedulingException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class NotificationReminderPayload {

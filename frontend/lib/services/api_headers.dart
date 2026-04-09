@@ -1,9 +1,7 @@
 import 'auth_session_service.dart';
 
-Map<String, String> buildJsonHeaders() {
-  final headers = <String, String>{
-    'Content-Type': 'application/json',
-  };
+Map<String, String> buildAuthHeaders() {
+  final headers = <String, String>{};
 
   final token = AuthSessionService.instance.accessToken;
   if (token != null && token.isNotEmpty) {
@@ -11,4 +9,11 @@ Map<String, String> buildJsonHeaders() {
   }
 
   return headers;
+}
+
+Map<String, String> buildJsonHeaders() {
+  return <String, String>{
+    ...buildAuthHeaders(),
+    'Content-Type': 'application/json',
+  };
 }
