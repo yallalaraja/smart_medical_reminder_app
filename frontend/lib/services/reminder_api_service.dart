@@ -18,7 +18,9 @@ class ReminderApiService {
   Future<List<MedicationReminder>> fetchDashboardReminders({
     required String userId,
   }) async {
-    final response = await _send(_client.get(_uri('/api/dashboard/$userId')));
+    final response = await _send(
+      () => _client.get(_uri('/api/dashboard/$userId')),
+    );
     _ensureSuccess(response, 'Unable to load reminders');
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -37,25 +39,27 @@ class ReminderApiService {
     required String userId,
     required MedicationReminder reminder,
   }) async {
-    final reminderResponse = await _send(_client.post(
-      _uri('/api/reminders'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'user_id': userId,
-          'title': reminder.title,
-          'description': reminder.description,
-          'category': reminder.category,
-          'scheduled_date': reminder.scheduledDate?.toIso8601String().split('T').first,
-          'time_of_day': _toApiTime(reminder.time),
-          'repeat_type': reminder.repeatType,
-          'selected_days': reminder.selectedDays,
-          'voice_message': reminder.voiceMessage,
-          'alert_audio_path': reminder.alertAudioPath,
-          'alert_audio_name': reminder.alertAudioName,
-        },
+    final reminderResponse = await _send(
+      () => _client.post(
+        _uri('/api/reminders'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'user_id': userId,
+            'title': reminder.title,
+            'description': reminder.description,
+            'category': reminder.category,
+            'scheduled_date': reminder.scheduledDate?.toIso8601String().split('T').first,
+            'time_of_day': _toApiTime(reminder.time),
+            'repeat_type': reminder.repeatType,
+            'selected_days': reminder.selectedDays,
+            'voice_message': reminder.voiceMessage,
+            'alert_audio_path': reminder.alertAudioPath,
+            'alert_audio_name': reminder.alertAudioName,
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(reminderResponse, 'Unable to create reminder');
 
     final reminderBody = jsonDecode(reminderResponse.body) as Map<String, dynamic>;
@@ -65,26 +69,28 @@ class ReminderApiService {
   Future<MedicationReminder> updateReminder({
     required MedicationReminder reminder,
   }) async {
-    final response = await _send(_client.put(
-      _uri('/api/reminders/${reminder.id}'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'title': reminder.title,
-          'description': reminder.description,
-          'category': reminder.category,
-          'scheduled_date': reminder.scheduledDate?.toIso8601String().split('T').first,
-          'time_of_day': _toApiTime(reminder.time),
-          'repeat_type': reminder.repeatType,
-          'selected_days': reminder.selectedDays,
-          'voice_message':
-              reminder.voiceMessage ?? 'It is time for ${reminder.title}',
-          'alert_audio_path': reminder.alertAudioPath,
-          'alert_audio_name': reminder.alertAudioName,
-          'is_active': reminder.isActive,
-        },
+    final response = await _send(
+      () => _client.put(
+        _uri('/api/reminders/${reminder.id}'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'title': reminder.title,
+            'description': reminder.description,
+            'category': reminder.category,
+            'scheduled_date': reminder.scheduledDate?.toIso8601String().split('T').first,
+            'time_of_day': _toApiTime(reminder.time),
+            'repeat_type': reminder.repeatType,
+            'selected_days': reminder.selectedDays,
+            'voice_message':
+                reminder.voiceMessage ?? 'It is time for ${reminder.title}',
+            'alert_audio_path': reminder.alertAudioPath,
+            'alert_audio_name': reminder.alertAudioName,
+            'is_active': reminder.isActive,
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(response, 'Unable to update reminder');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -94,24 +100,28 @@ class ReminderApiService {
   Future<void> deleteReminder({
     required String reminderId,
   }) async {
-    final response = await _send(_client.delete(_uri('/api/reminders/$reminderId')));
+    final response = await _send(
+      () => _client.delete(_uri('/api/reminders/$reminderId')),
+    );
     _ensureSuccess(response, 'Unable to delete reminder');
   }
 
   Future<MedicationReminder> markReminderDone({
     required String reminderId,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/logs'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'reminder_id': reminderId,
-          'status': 'done',
-          'notes': 'Completed from Flutter app',
-        },
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/logs'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'reminder_id': reminderId,
+            'status': 'done',
+            'notes': 'Completed from Flutter app',
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(response, 'Unable to save reminder status');
 
     return fetchReminder(reminderId: reminderId);
@@ -121,16 +131,18 @@ class ReminderApiService {
     required String reminderId,
     String channel = 'sms',
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/reminders/$reminderId/missed'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'channel': channel,
-          'notes': 'Marked as missed from Flutter app',
-        },
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/reminders/$reminderId/missed'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'channel': channel,
+            'notes': 'Marked as missed from Flutter app',
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(response, 'Unable to mark reminder as missed');
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -140,10 +152,12 @@ class ReminderApiService {
   Future<MedicationReminder> markReminderTriggered({
     required String reminderId,
   }) async {
-    final response = await _send(_client.put(
-      _uri('/api/reminders/$reminderId/trigger'),
-      headers: buildJsonHeaders(),
-    ));
+    final response = await _send(
+      () => _client.put(
+        _uri('/api/reminders/$reminderId/trigger'),
+        headers: buildJsonHeaders(),
+      ),
+    );
     _ensureSuccess(response, 'Unable to start reminder alert');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -153,17 +167,19 @@ class ReminderApiService {
   Future<MedicationReminder> markReminderPending({
     required String reminderId,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/logs'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'reminder_id': reminderId,
-          'status': 'pending',
-          'notes': 'Marked pending again from Flutter app',
-        },
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/logs'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'reminder_id': reminderId,
+            'status': 'pending',
+            'notes': 'Marked pending again from Flutter app',
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(response, 'Unable to undo reminder completion');
 
     return fetchReminder(reminderId: reminderId);
@@ -172,17 +188,19 @@ class ReminderApiService {
   Future<MedicationReminder> markReminderDismissed({
     required String reminderId,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/logs'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'reminder_id': reminderId,
-          'status': 'dismissed',
-          'notes': 'Alarm turned off from Flutter app',
-        },
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/logs'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'reminder_id': reminderId,
+            'status': 'dismissed',
+            'notes': 'Alarm turned off from Flutter app',
+          },
+        ),
       ),
-    ));
+    );
     _ensureSuccess(response, 'Unable to dismiss reminder');
 
     return fetchReminder(reminderId: reminderId);
@@ -192,11 +210,13 @@ class ReminderApiService {
     required String reminderId,
     int minutes = 10,
   }) async {
-    final response = await _send(_client.put(
-      _uri('/api/reminders/$reminderId/snooze'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode({'minutes': minutes}),
-    ));
+    final response = await _send(
+      () => _client.put(
+        _uri('/api/reminders/$reminderId/snooze'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode({'minutes': minutes}),
+      ),
+    );
     _ensureSuccess(response, 'Unable to snooze reminder');
 
     return fetchReminder(reminderId: reminderId);
@@ -205,7 +225,9 @@ class ReminderApiService {
   Future<MedicationReminder> fetchReminder({
     required String reminderId,
   }) async {
-    final response = await _send(_client.get(_uri('/api/reminders/$reminderId')));
+    final response = await _send(
+      () => _client.get(_uri('/api/reminders/$reminderId')),
+    );
     _ensureSuccess(response, 'Unable to load reminder');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -216,16 +238,28 @@ class ReminderApiService {
     _client.close();
   }
 
-  Future<http.Response> _send(Future<http.Response> request) async {
-    try {
-      return await request.timeout(
-        const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
-      );
-    } on TimeoutException {
-      throw ReminderApiException(
-        'The server is taking too long to respond. Please try again.',
-      );
+  Future<http.Response> _send(
+    Future<http.Response> Function() requestFactory,
+  ) async {
+    Object? lastError;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await requestFactory().timeout(
+          const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
+        );
+      } on TimeoutException catch (error) {
+        lastError = error;
+      } on http.ClientException catch (error) {
+        lastError = error;
+      }
     }
+
+    throw ReminderApiException(
+      lastError is TimeoutException
+          ? 'The server is taking too long to respond. Please try again.'
+          : 'Unable to connect to the backend right now.',
+    );
   }
 
   void _ensureSuccess(http.Response response, String message) {

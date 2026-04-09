@@ -100,6 +100,19 @@ def latest_log_for_reminder(reminder_id: str):
     )
 
 
+def latest_log_for_loaded_reminder(reminder: Reminder) -> AdherenceLog | None:
+    if "logs" not in reminder.__dict__:
+        return latest_log_for_reminder(reminder.id)
+
+    if not reminder.logs:
+        return None
+
+    return max(
+        reminder.logs,
+        key=lambda log: (log.action_time, log.id),
+    )
+
+
 def latest_log_after(reminder_id: str, started_at) -> AdherenceLog | None:
     return (
         AdherenceLog.query.filter(
@@ -112,7 +125,7 @@ def latest_log_after(reminder_id: str, started_at) -> AdherenceLog | None:
 
 
 def serialize_reminder(reminder: Reminder):
-    latest_log = latest_log_for_reminder(reminder.id)
+    latest_log = latest_log_for_loaded_reminder(reminder)
     timezone_name = reminder.user.timezone if reminder.user else None
     latest_status = latest_log.status if latest_log else "pending"
     return {

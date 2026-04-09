@@ -16,10 +16,12 @@ class CaregiverApiService {
   Uri _uri(String path) => Uri.parse('${AppConfig.apiBaseUrl}$path');
 
   Future<List<Caregiver>> fetchCaregivers({required String userId}) async {
-    final response = await _send(_client.get(
-      _uri('/api/users/$userId/caregivers'),
-      headers: buildAuthHeaders(),
-    ));
+    final response = await _send(
+      () => _client.get(
+        _uri('/api/users/$userId/caregivers'),
+        headers: buildAuthHeaders(),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ReminderApiException('Unable to load caregivers');
     }
@@ -34,11 +36,13 @@ class CaregiverApiService {
     required String userId,
     required Caregiver caregiver,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/caregivers'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(caregiver.toCreateJson(userId: userId)),
-    ));
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/caregivers'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(caregiver.toCreateJson(userId: userId)),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -57,10 +61,12 @@ class CaregiverApiService {
   Future<Caregiver> resendInvitation({
     required String caregiverId,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/caregivers/$caregiverId/resend-invitation'),
-      headers: buildAuthHeaders(),
-    ));
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/caregivers/$caregiverId/resend-invitation'),
+        headers: buildAuthHeaders(),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -79,11 +85,13 @@ class CaregiverApiService {
   Future<Caregiver> updateCaregiver({
     required Caregiver caregiver,
   }) async {
-    final response = await _send(_client.put(
-      _uri('/api/caregivers/${caregiver.id}'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(caregiver.toUpdateJson()),
-    ));
+    final response = await _send(
+      () => _client.put(
+        _uri('/api/caregivers/${caregiver.id}'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(caregiver.toUpdateJson()),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -103,16 +111,18 @@ class CaregiverApiService {
     required String caregiverId,
     required String otpCode,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/caregivers/verify-otp'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode(
-        {
-          'caregiver_id': caregiverId,
-          'otp_code': otpCode,
-        },
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/caregivers/verify-otp'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode(
+          {
+            'caregiver_id': caregiverId,
+            'otp_code': otpCode,
+          },
+        ),
       ),
-    ));
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -131,10 +141,12 @@ class CaregiverApiService {
   Future<Caregiver> rejectInvitation({
     required String caregiverId,
   }) async {
-    final response = await _send(_client.post(
-      _uri('/api/caregivers/$caregiverId/reject'),
-      headers: buildAuthHeaders(),
-    ));
+    final response = await _send(
+      () => _client.post(
+        _uri('/api/caregivers/$caregiverId/reject'),
+        headers: buildAuthHeaders(),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -153,10 +165,12 @@ class CaregiverApiService {
   Future<String> deleteCaregiver({
     required String caregiverId,
   }) async {
-    final response = await _send(_client.delete(
-      _uri('/api/caregivers/$caregiverId'),
-      headers: buildAuthHeaders(),
-    ));
+    final response = await _send(
+      () => _client.delete(
+        _uri('/api/caregivers/$caregiverId'),
+        headers: buildAuthHeaders(),
+      ),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? errorMessage;
       try {
@@ -176,15 +190,27 @@ class CaregiverApiService {
     _client.close();
   }
 
-  Future<http.Response> _send(Future<http.Response> request) async {
-    try {
-      return await request.timeout(
-        const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
-      );
-    } on TimeoutException {
-      throw ReminderApiException(
-        'The server is taking too long to respond. Please try again.',
-      );
+  Future<http.Response> _send(
+    Future<http.Response> Function() requestFactory,
+  ) async {
+    Object? lastError;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await requestFactory().timeout(
+          const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
+        );
+      } on TimeoutException catch (error) {
+        lastError = error;
+      } on http.ClientException catch (error) {
+        lastError = error;
+      }
     }
+
+    throw ReminderApiException(
+      lastError is TimeoutException
+          ? 'The server is taking too long to respond. Please try again.'
+          : 'Unable to connect to the backend right now.',
+    );
   }
 }

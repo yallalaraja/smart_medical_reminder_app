@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, jsonify, request
+from sqlalchemy.orm import joinedload, selectinload
 
 from ..extensions import db
-from ..models import AdherenceLog, Reminder, User
+from ..models import AdherenceLog, Caregiver, Reminder, User
 from ..services import (
     get_user_or_error,
     normalize_category,
@@ -25,7 +26,10 @@ reminders_bp = Blueprint("reminders", __name__)
 def list_reminders():
     user_id = request.args.get("user_id")
 
-    query = Reminder.query
+    query = Reminder.query.options(
+        joinedload(Reminder.user),
+        selectinload(Reminder.logs),
+    )
     if user_id:
         user, user_error, status_code = get_user_or_error(user_id)
         if user_error:
@@ -96,7 +100,12 @@ def create_reminder():
 
 @reminders_bp.get("/reminders/<string:reminder_id>")
 def get_reminder(reminder_id: str):
-    reminder = Reminder.query.get_or_404(reminder_id)
+    reminder = (
+        Reminder.query.options(
+            joinedload(Reminder.user),
+            selectinload(Reminder.logs),
+        ).get_or_404(reminder_id)
+    )
     return jsonify(serialize_reminder(reminder))
 
 
@@ -265,7 +274,15 @@ def delete_reminder(reminder_id: str):
 
 @reminders_bp.get("/dashboard/<string:user_id>")
 def get_dashboard(user_id: str):
-    user = User.query.get_or_404(user_id)
+    user = (
+        User.query.options(
+            selectinload(User.reminders).options(
+                joinedload(Reminder.user),
+                selectinload(Reminder.logs),
+            ),
+            selectinload(User.caregivers).joinedload(Caregiver.user),
+        ).get_or_404(user_id)
+    )
 
     reminders = [serialize_reminder(reminder) for reminder in user.reminders]
 

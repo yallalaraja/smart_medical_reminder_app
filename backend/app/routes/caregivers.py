@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import Caregiver
@@ -122,7 +123,13 @@ def list_caregivers(user_id: str):
     if user_error:
         return jsonify(user_error), status_code
 
-    return jsonify([serialize_caregiver(caregiver) for caregiver in user.caregivers])
+    caregivers = (
+        Caregiver.query.options(joinedload(Caregiver.user))
+        .filter_by(user_id=user.id)
+        .order_by(Caregiver.created_at.desc())
+        .all()
+    )
+    return jsonify([serialize_caregiver(caregiver) for caregiver in caregivers])
 
 
 @caregivers_bp.put("/caregivers/<string:caregiver_id>")

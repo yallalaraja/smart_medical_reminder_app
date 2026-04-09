@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -17,10 +18,12 @@ class UserApiService {
     required String userId,
     required String timezone,
   }) async {
-    final response = await _client.put(
-      _uri('/api/users/$userId/timezone'),
-      headers: buildJsonHeaders(),
-      body: jsonEncode({'timezone': timezone}),
+    final response = await _send(
+      () => _client.put(
+        _uri('/api/users/$userId/timezone'),
+        headers: buildJsonHeaders(),
+        body: jsonEncode({'timezone': timezone}),
+      ),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -37,5 +40,29 @@ class UserApiService {
 
   void dispose() {
     _client.close();
+  }
+
+  Future<http.Response> _send(
+    Future<http.Response> Function() requestFactory,
+  ) async {
+    Object? lastError;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await requestFactory().timeout(
+          const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
+        );
+      } on TimeoutException catch (error) {
+        lastError = error;
+      } on http.ClientException catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw ReminderApiException(
+      lastError is TimeoutException
+          ? 'The server is taking too long to respond. Please try again.'
+          : 'Unable to connect to the backend right now.',
+    );
   }
 }
