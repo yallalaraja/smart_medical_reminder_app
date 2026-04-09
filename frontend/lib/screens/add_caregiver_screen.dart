@@ -79,8 +79,10 @@ class _AddCaregiverScreenState extends State<AddCaregiverScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text(
-                'Add someone who should be notified if a reminder is missed.',
+              Text(
+                _isEditMode
+                    ? 'Update caregiver details. Changing the phone number will require OTP verification again.'
+                    : 'Add someone who should be notified if a reminder is missed.',
                 style: TextStyle(fontSize: 18),
               ),
               const SizedBox(height: 20),

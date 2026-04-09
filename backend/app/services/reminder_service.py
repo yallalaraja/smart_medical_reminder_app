@@ -5,6 +5,16 @@ from .caregiver_service import normalize_notification_channel, serialize_caregiv
 from .notification_service import notify_caregiver, with_signature
 from .timezone_service import datetime_to_local_iso, format_local_time_for_message
 
+_ALLOWED_LOG_STATUSES = {
+    "scheduled",
+    "triggered",
+    "done",
+    "dismissed",
+    "snoozed",
+    "missed",
+    "pending",
+}
+
 
 def parse_time_of_day(time_value: str | None) -> str | None:
     if not time_value:
@@ -44,6 +54,17 @@ def normalize_category(value: str | None) -> str:
     if not value:
         return "personal"
     return value.strip().lower()
+
+
+def normalize_log_status(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    normalized = value.strip().lower()
+    if normalized not in _ALLOWED_LOG_STATUSES:
+        return None
+
+    return normalized
 
 
 def normalize_selected_days(value: str | list[str] | None, repeat_type: str) -> str | None:
@@ -93,6 +114,7 @@ def latest_log_after(reminder_id: str, started_at) -> AdherenceLog | None:
 def serialize_reminder(reminder: Reminder):
     latest_log = latest_log_for_reminder(reminder.id)
     timezone_name = reminder.user.timezone if reminder.user else None
+    latest_status = latest_log.status if latest_log else "pending"
     return {
         "id": reminder.id,
         "user_id": reminder.user_id,
@@ -121,12 +143,25 @@ def serialize_reminder(reminder: Reminder):
             reminder.last_status_notification_at,
             timezone_name,
         ),
-        "latest_status": latest_log.status if latest_log else "pending",
+        "latest_status": latest_status,
+        "lifecycle_status": derive_lifecycle_status(reminder, latest_status),
         "latest_action_time": datetime_to_local_iso(
             latest_log.action_time if latest_log else None,
             timezone_name,
         ),
     }
+
+
+def derive_lifecycle_status(reminder: Reminder, latest_status: str | None) -> str:
+    normalized_status = normalize_log_status(latest_status) or "pending"
+
+    if normalized_status == "done":
+        return "completed"
+    if normalized_status in {"dismissed", "missed", "snoozed"}:
+        return normalized_status
+    if normalized_status == "triggered" or reminder.pending_evaluation_started_at is not None:
+        return "triggered"
+    return "scheduled"
 
 
 def _reminder_schedule_text(reminder: Reminder) -> str:
@@ -149,6 +184,13 @@ def build_missed_notification_message(reminder: Reminder) -> str:
     return with_signature(
         f"Alert: The task '{reminder.title}' scheduled at "
         f"{_reminder_schedule_text(reminder)} was MISSED.{description_line} Please check."
+    )
+
+
+def build_dismissed_notification_message(reminder: Reminder) -> str:
+    return with_signature(
+        f"Update: The task '{reminder.title}' scheduled at "
+        f"{_reminder_schedule_text(reminder)} was DISMISSED."
     )
 
 
@@ -221,6 +263,17 @@ def notify_caregivers_for_completed_reminder(
     return _notify_accepted_caregivers(
         reminder,
         message=build_completed_notification_message(reminder),
+        channel=channel,
+    )
+
+
+def notify_caregivers_for_dismissed_reminder(
+    reminder: Reminder,
+    channel: str | None = None,
+) -> dict:
+    return _notify_accepted_caregivers(
+        reminder,
+        message=build_dismissed_notification_message(reminder),
         channel=channel,
     )
 

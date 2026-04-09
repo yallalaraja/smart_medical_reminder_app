@@ -129,6 +129,7 @@ def list_caregivers(user_id: str):
 def update_caregiver(caregiver_id: str):
     caregiver = Caregiver.query.get_or_404(caregiver_id)
     data = request.get_json() or {}
+    existing_phone_number = caregiver.phone_number
 
     caregiver_data, validation_error, validation_status = _validate_caregiver_payload(
         data,
@@ -143,7 +144,10 @@ def update_caregiver(caregiver_id: str):
     caregiver.relationship = caregiver_data["relationship"]
     caregiver.notification_channel = caregiver_data["notification_channel"]
 
-    if caregiver.status != "accepted":
+    phone_number_changed = caregiver.phone_number != existing_phone_number
+    should_restart_verification = caregiver.status != "accepted" or phone_number_changed
+
+    if should_restart_verification:
         caregiver.status = "pending"
         caregiver.accepted_at = None
         caregiver.rejected_at = None
@@ -160,9 +164,15 @@ def update_caregiver(caregiver_id: str):
             caregiver.otp_expires_at,
             caregiver.user.timezone,
         )
+
+        message = (
+            "Caregiver updated and phone number verification restarted"
+            if phone_number_changed
+            else "Caregiver updated and verification restarted"
+        )
         return jsonify(
             {
-                "message": "Caregiver updated and verification restarted",
+                "message": message,
                 "caregiver": serialize_caregiver(caregiver),
                 "invitation": {
                     "success": invitation_result.success,

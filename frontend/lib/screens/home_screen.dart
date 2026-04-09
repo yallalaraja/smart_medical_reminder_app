@@ -616,19 +616,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _turnOffAlarm(String reminderId) async {
-    _suppressedDueReminderIds.add(reminderId);
-    await _clearDueAlert(reminderId: reminderId, stopVoice: true);
-    await _notificationService.cancelReminder(reminderId);
+    final reminder = _reminders.firstWhere((item) => item.id == reminderId);
 
-    if (!mounted) {
-      return;
+    try {
+      _suppressedDueReminderIds.add(reminderId);
+      await _clearDueAlert(reminderId: reminderId, stopVoice: true);
+      await _notificationService.cancelReminder(reminderId);
+
+      final updatedReminder = await _apiService.markReminderDismissed(
+        reminderId: reminderId,
+      );
+      final displayReminder = _normalizeReminderForDisplay(updatedReminder);
+
+      setState(() {
+        _replaceReminder(displayReminder);
+      });
+      _refreshSuppressedDueReminders();
+
+      await _notificationService.scheduleReminder(displayReminder);
+      await _checkDueReminders(forceVoice: true);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            reminder.isRecurring
+                ? 'Alarm dismissed. The next reminder is scheduled.'
+                : 'Alarm dismissed.',
+          ),
+        ),
+      );
+    } on ReminderApiException catch (error) {
+      _suppressedDueReminderIds.remove(reminderId);
+      await _notificationService.scheduleReminder(reminder);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      _suppressedDueReminderIds.remove(reminderId);
+      await _notificationService.scheduleReminder(reminder);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not turn off the alarm right now.'),
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Alarm turned off for now'),
-      ),
-    );
   }
 
   Future<void> _speakReminder(MedicationReminder reminder) async {

@@ -6,6 +6,7 @@ from ..models import AdherenceLog, Reminder
 from .reminder_service import (
     latest_log_after,
     notify_caregivers_for_completed_reminder,
+    notify_caregivers_for_dismissed_reminder,
     notify_caregivers_for_missed_reminder,
 )
 from .timezone_service import utc_now
@@ -48,6 +49,8 @@ def _evaluate_reminder_after_delay(
         if latest_log is not None:
             if latest_log.status == "done":
                 final_status = "completed"
+            elif latest_log.status == "dismissed":
+                final_status = "dismissed"
             elif latest_log.status in {"snoozed", "pending"}:
                 reminder.pending_evaluation_started_at = None
                 db.session.commit()
@@ -72,5 +75,7 @@ def _evaluate_reminder_after_delay(
 
         if final_status == "completed":
             notify_caregivers_for_completed_reminder(reminder)
+        elif final_status == "dismissed":
+            notify_caregivers_for_dismissed_reminder(reminder)
         elif final_status == "missed":
             notify_caregivers_for_missed_reminder(reminder)

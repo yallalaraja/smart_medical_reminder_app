@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 
 from ..extensions import db
 from ..models import AdherenceLog, Reminder
-from ..services import utc_now
+from ..services import normalize_log_status, utc_now
 
 logs_bp = Blueprint("logs", __name__)
 
@@ -20,25 +20,34 @@ def create_log():
     if not reminder:
         return jsonify({"error": "Reminder not found"}), 404
 
+    normalized_status = normalize_log_status(data.get("status"))
+    if normalized_status is None:
+        return jsonify({"error": "Invalid reminder status"}), 400
+
     adherence_log = AdherenceLog(
         reminder_id=data["reminder_id"],
-        status=data["status"],
+        status=normalized_status,
         notes=data.get("notes"),
         action_time=utc_now(),
     )
     db.session.add(adherence_log)
 
-    if data["status"] == "done":
+    if normalized_status == "done":
         reminder.last_completed_at = adherence_log.action_time
         reminder.snoozed_until = None
         reminder.last_triggered_at = None
-    elif data["status"] == "pending":
+    elif normalized_status == "pending":
         reminder.last_completed_at = None
         reminder.snoozed_until = None
         reminder.last_triggered_at = None
-    elif data["status"] == "missed":
+        reminder.pending_evaluation_started_at = None
+    elif normalized_status == "dismissed":
         reminder.snoozed_until = None
         reminder.last_triggered_at = None
+    elif normalized_status == "missed":
+        reminder.snoozed_until = None
+        reminder.last_triggered_at = None
+        reminder.pending_evaluation_started_at = None
 
     db.session.commit()
 

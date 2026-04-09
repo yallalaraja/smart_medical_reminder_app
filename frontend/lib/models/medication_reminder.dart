@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum ReminderStatus { pending, done, snoozed, missed }
+enum ReminderStatus { pending, triggered, done, dismissed, snoozed, missed }
 
 class MedicationReminder {
   MedicationReminder({
@@ -93,12 +93,16 @@ class MedicationReminder {
     switch (status) {
       case ReminderStatus.done:
         return 'Completed';
+      case ReminderStatus.dismissed:
+        return 'Dismissed';
       case ReminderStatus.snoozed:
         return 'Snoozed';
       case ReminderStatus.missed:
         return 'Missed';
+      case ReminderStatus.triggered:
+        return 'Triggered';
       case ReminderStatus.pending:
-        return 'Pending';
+        return 'Scheduled';
     }
   }
 
@@ -144,7 +148,10 @@ class MedicationReminder {
       latestActionAt: reminderJson['latest_action_time'] != null
           ? DateTime.tryParse(reminderJson['latest_action_time'].toString())
           : null,
-      status: _statusFromApi(reminderJson['latest_status']?.toString()),
+      status: _statusFromApi(
+        reminderJson['lifecycle_status']?.toString() ??
+            reminderJson['latest_status']?.toString(),
+      ),
     );
   }
 
@@ -223,7 +230,9 @@ class MedicationReminder {
       );
     }
 
-    if ((status == ReminderStatus.done || status == ReminderStatus.missed) &&
+    if ((status == ReminderStatus.done ||
+            status == ReminderStatus.dismissed ||
+            status == ReminderStatus.missed) &&
         isRecurring) {
       final markerTime = status == ReminderStatus.done
           ? lastCompletedAt
@@ -336,6 +345,11 @@ class MedicationReminder {
     }
 
     if (lastCompletedAt != null && !lastCompletedAt!.isBefore(occurrence)) {
+      return null;
+    }
+    if ((status == ReminderStatus.dismissed || status == ReminderStatus.missed) &&
+        latestActionAt != null &&
+        !latestActionAt!.isBefore(occurrence)) {
       return null;
     }
 
@@ -465,12 +479,17 @@ class MedicationReminder {
 
   static ReminderStatus _statusFromApi(String? value) {
     switch (value) {
+      case 'completed':
       case 'done':
         return ReminderStatus.done;
+      case 'dismissed':
+        return ReminderStatus.dismissed;
       case 'snoozed':
         return ReminderStatus.snoozed;
       case 'missed':
         return ReminderStatus.missed;
+      case 'triggered':
+        return ReminderStatus.triggered;
       default:
         return ReminderStatus.pending;
     }

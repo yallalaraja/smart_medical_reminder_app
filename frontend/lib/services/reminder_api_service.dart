@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -17,7 +18,7 @@ class ReminderApiService {
   Future<List<MedicationReminder>> fetchDashboardReminders({
     required String userId,
   }) async {
-    final response = await _client.get(_uri('/api/dashboard/$userId'));
+    final response = await _send(_client.get(_uri('/api/dashboard/$userId')));
     _ensureSuccess(response, 'Unable to load reminders');
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -36,7 +37,7 @@ class ReminderApiService {
     required String userId,
     required MedicationReminder reminder,
   }) async {
-    final reminderResponse = await _client.post(
+    final reminderResponse = await _send(_client.post(
       _uri('/api/reminders'),
       headers: buildJsonHeaders(),
       body: jsonEncode(
@@ -54,7 +55,7 @@ class ReminderApiService {
           'alert_audio_name': reminder.alertAudioName,
         },
       ),
-    );
+    ));
     _ensureSuccess(reminderResponse, 'Unable to create reminder');
 
     final reminderBody = jsonDecode(reminderResponse.body) as Map<String, dynamic>;
@@ -64,7 +65,7 @@ class ReminderApiService {
   Future<MedicationReminder> updateReminder({
     required MedicationReminder reminder,
   }) async {
-    final response = await _client.put(
+    final response = await _send(_client.put(
       _uri('/api/reminders/${reminder.id}'),
       headers: buildJsonHeaders(),
       body: jsonEncode(
@@ -83,7 +84,7 @@ class ReminderApiService {
           'is_active': reminder.isActive,
         },
       ),
-    );
+    ));
     _ensureSuccess(response, 'Unable to update reminder');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -93,14 +94,14 @@ class ReminderApiService {
   Future<void> deleteReminder({
     required String reminderId,
   }) async {
-    final response = await _client.delete(_uri('/api/reminders/$reminderId'));
+    final response = await _send(_client.delete(_uri('/api/reminders/$reminderId')));
     _ensureSuccess(response, 'Unable to delete reminder');
   }
 
   Future<MedicationReminder> markReminderDone({
     required String reminderId,
   }) async {
-    final response = await _client.post(
+    final response = await _send(_client.post(
       _uri('/api/logs'),
       headers: buildJsonHeaders(),
       body: jsonEncode(
@@ -110,7 +111,7 @@ class ReminderApiService {
           'notes': 'Completed from Flutter app',
         },
       ),
-    );
+    ));
     _ensureSuccess(response, 'Unable to save reminder status');
 
     return fetchReminder(reminderId: reminderId);
@@ -120,7 +121,7 @@ class ReminderApiService {
     required String reminderId,
     String channel = 'sms',
   }) async {
-    final response = await _client.post(
+    final response = await _send(_client.post(
       _uri('/api/reminders/$reminderId/missed'),
       headers: buildJsonHeaders(),
       body: jsonEncode(
@@ -129,7 +130,7 @@ class ReminderApiService {
           'notes': 'Marked as missed from Flutter app',
         },
       ),
-    );
+    ));
     _ensureSuccess(response, 'Unable to mark reminder as missed');
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -139,10 +140,10 @@ class ReminderApiService {
   Future<MedicationReminder> markReminderTriggered({
     required String reminderId,
   }) async {
-    final response = await _client.put(
+    final response = await _send(_client.put(
       _uri('/api/reminders/$reminderId/trigger'),
       headers: buildJsonHeaders(),
-    );
+    ));
     _ensureSuccess(response, 'Unable to start reminder alert');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -152,7 +153,7 @@ class ReminderApiService {
   Future<MedicationReminder> markReminderPending({
     required String reminderId,
   }) async {
-    final response = await _client.post(
+    final response = await _send(_client.post(
       _uri('/api/logs'),
       headers: buildJsonHeaders(),
       body: jsonEncode(
@@ -162,8 +163,27 @@ class ReminderApiService {
           'notes': 'Marked pending again from Flutter app',
         },
       ),
-    );
+    ));
     _ensureSuccess(response, 'Unable to undo reminder completion');
+
+    return fetchReminder(reminderId: reminderId);
+  }
+
+  Future<MedicationReminder> markReminderDismissed({
+    required String reminderId,
+  }) async {
+    final response = await _send(_client.post(
+      _uri('/api/logs'),
+      headers: buildJsonHeaders(),
+      body: jsonEncode(
+        {
+          'reminder_id': reminderId,
+          'status': 'dismissed',
+          'notes': 'Alarm turned off from Flutter app',
+        },
+      ),
+    ));
+    _ensureSuccess(response, 'Unable to dismiss reminder');
 
     return fetchReminder(reminderId: reminderId);
   }
@@ -172,11 +192,11 @@ class ReminderApiService {
     required String reminderId,
     int minutes = 10,
   }) async {
-    final response = await _client.put(
+    final response = await _send(_client.put(
       _uri('/api/reminders/$reminderId/snooze'),
       headers: buildJsonHeaders(),
       body: jsonEncode({'minutes': minutes}),
-    );
+    ));
     _ensureSuccess(response, 'Unable to snooze reminder');
 
     return fetchReminder(reminderId: reminderId);
@@ -185,7 +205,7 @@ class ReminderApiService {
   Future<MedicationReminder> fetchReminder({
     required String reminderId,
   }) async {
-    final response = await _client.get(_uri('/api/reminders/$reminderId'));
+    final response = await _send(_client.get(_uri('/api/reminders/$reminderId')));
     _ensureSuccess(response, 'Unable to load reminder');
 
     final reminderBody = jsonDecode(response.body) as Map<String, dynamic>;
@@ -194,6 +214,18 @@ class ReminderApiService {
 
   void dispose() {
     _client.close();
+  }
+
+  Future<http.Response> _send(Future<http.Response> request) async {
+    try {
+      return await request.timeout(
+        const Duration(seconds: AppConfig.apiRequestTimeoutSeconds),
+      );
+    } on TimeoutException {
+      throw ReminderApiException(
+        'The server is taking too long to respond. Please try again.',
+      );
+    }
   }
 
   void _ensureSuccess(http.Response response, String message) {

@@ -32,8 +32,10 @@ class ReminderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDone = reminder.status == ReminderStatus.done;
+    final isDismissed = reminder.status == ReminderStatus.dismissed;
     final isSnoozed = reminder.status == ReminderStatus.snoozed;
     final isMissed = reminder.status == ReminderStatus.missed;
+    final isTriggered = reminder.status == ReminderStatus.triggered;
     final categoryColor = _categoryColor(reminder.category);
 
     return Card(
@@ -78,10 +80,14 @@ class ReminderCard extends StatelessWidget {
                   label: reminder.statusLabel(),
                   color: isDone
                       ? const Color(0xFF2F855A)
+                      : isDismissed
+                          ? const Color(0xFF6B7280)
                       : isSnoozed
                           ? const Color(0xFFB7791F)
                           : isMissed
                               ? const Color(0xFFC2410C)
+                          : isTriggered
+                              ? const Color(0xFF7C3AED)
                           : const Color(0xFF486581),
                 ),
               ],
@@ -165,7 +171,7 @@ class ReminderCard extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Delete'),
                 ),
-                if (!isDone && !isMissed)
+                if (!isDone && !isDismissed && !isMissed)
                   TextButton.icon(
                     onPressed: onMissed,
                     icon: const Icon(Icons.sms_failed_outlined),
